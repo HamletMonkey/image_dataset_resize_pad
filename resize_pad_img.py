@@ -1,15 +1,15 @@
 import os
 from pathlib import Path
-import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from pascal_voc_writer import Writer
 import xml.etree.ElementTree as ET
+from PIL import Image, ImageDraw, ImageOps
 import argparse
 
 
 def resize_pad_XML(
-    ANN_PATH, IMG_PATH, OUTPUT_ANN_PATH, OUTPUT_IMG_PATH, output_height, output_width
+    ANN_PATH, IMG_PATH, OUTPUT_ANN_PATH, OUTPUT_IMG_PATH, output_width, output_height
 ):
 
     """
@@ -20,8 +20,9 @@ def resize_pad_XML(
         IMG_PATH: path, image folder path
         OUTPUT_ANN_PATH: path, path to save resized and padded image annotation
         OUTPUT_IMG_PATH: path, path to save resized and padded image
-        output_height: int, resized height
         output_weight: int, resized width
+        output_height: int, resized height
+
 
     # Outputs
         resized and padded image annotations saved to OUTPUT_ANN_PATH
@@ -44,79 +45,32 @@ def resize_pad_XML(
         print(len(xml_result))  # amount of bbox per image
         print(xml_result)
 
-        # loading of image
-        image = cv2.imread(os.path.join(IMG_PATH, f"{item}.jpg"))
-        print(
-            f"original image height:{image.shape[0]}, original image width:{image.shape[1]}"
-        )
+        im = Image.open(os.path.join(IMG_PATH, f"{item}.jpg"))
+        im_pad = ImageOps.pad(im, (output_width, output_height), color="black")
+        im_pad.save(os.path.join(OUTPUT_IMG_PATH, f"{item}.jpg"))
+        w, h = im.size
 
-        h, w = image.shape[:2]
-        img_ar = w / h  # aspect ratio
-        print(img_ar)
+        im_ar = np.float32(w / h)
+        output_im_ar = np.float32(output_width / output_height)
 
-        if h > w:
-            new_h = output_height
-            new_w = int(img_ar * new_h)
-            if new_w > output_width:
-                new_w = output_width
-                new_h = int(new_w / img_ar)
-                diff = abs(output_height - new_h)
-                if diff % 2 == 0:
-                    topbottom_pad = diff // 2
-                else:
-                    new_h = new_h - 1
-                    diff = diff + 1
-                    topbottom_pad = diff // 2
-                side_pad = 0
-            else:
-                topbottom_pad = 0
-                diff = abs(output_width - new_w)
-                if diff % 2 == 0:
-                    side_pad = diff // 2
-                else:
-                    new_w = new_w - 1
-                    diff = diff + 1
-                    side_pad = diff // 2
+        if im_ar < output_im_ar:
+            new_h = int(output_height)
+            new_w = int(im_ar * new_h)
+            # paddings on sides
+            diff = abs(output_width - new_w)
+            side_pad = diff // 2
+            topbottom_pad = 0
         else:
-            new_w = output_width
-            new_h = int(new_w / img_ar)
-            if new_h > output_height:
-                new_h = output_height
-                new_w = int(img_ar * new_h)
-                topbottom_pad = 0
-                diff = abs(output_width - new_w)
-                if diff % 2 == 0:
-                    side_pad = diff // 2
-                else:
-                    new_w = new_w - 1
-                    diff = diff + 1
-                    side_pad = diff // 2
-            else:
-                diff = abs(output_height - new_h)
-                if diff % 2 == 0:
-                    topbottom_pad = diff // 2
-                else:
-                    new_h = new_h - 1
-                    diff = diff + 1
-                    topbottom_pad = diff // 2
-                side_pad = 0
+            new_w = int(output_width)
+            new_h = int(new_w / im_ar)
+            # paddings on top and bottom
+            diff = abs(output_height - new_h)
+            topbottom_pad = diff // 2
+            side_pad = 0
 
         print(f"new height: {new_h}, new width = {new_w}")
         print(f"side paddings: {side_pad}")
         print(f"top and bottom paddings: {topbottom_pad}")
-
-        output = cv2.resize(image, (new_w, new_h))
-        output_pad = cv2.copyMakeBorder(
-            output,
-            topbottom_pad,
-            topbottom_pad,
-            side_pad,
-            side_pad,
-            cv2.BORDER_CONSTANT,
-            value=0,
-        )  # black padding
-
-        cv2.imwrite(os.path.join(OUTPUT_IMG_PATH, f"{item}.jpg"), output_pad)
 
         # the shifting of bounding box -- with scaling factor
         height_ratio = np.float32(new_h / h)
@@ -176,11 +130,12 @@ if __name__ == "__main__":
         help="path to save resized and padded images",
     )
     parser.add_argument(
-        "-oh", type=int, required=True, help="desired resized image output height"
-    )
-    parser.add_argument(
         "-ow", type=int, required=True, help="desired resized image output width"
     )
+    parser.add_argument(
+        "-oh", type=int, required=True, help="desired resized image output height"
+    )
+
     args = parser.parse_args()
 
     resize_pad_XML(
@@ -188,6 +143,6 @@ if __name__ == "__main__":
         IMG_PATH=args.img_path,
         OUTPUT_ANN_PATH=args.resized_ap,
         OUTPUT_IMG_PATH=args.resized_ip,
-        output_height=args.oh,
         output_width=args.ow,
+        output_height=args.oh,
     )
