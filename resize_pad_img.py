@@ -162,22 +162,32 @@ if __name__ == "__main__":
         help="path to image dataset folder",
     )
     parser.add_argument(
-        "--resized_annpath",
+        "--resized_ap",
         type=str,
         default="./resized_xml_ann",
         required=True,
         help="path to save rescaled XML annotations",
     )
     parser.add_argument(
-        "--resized_imgpath",
+        "--resized_ip",
         type=str,
         default="./resized_img",
         required=True,
         help="path to save resized and padded images",
     )
     parser.add_argument(
-        "-ow", type=int, required=True, help="desired resized image output width"
+        "-oh", type=int, required=True, help="desired resized image output height"
     )
     parser.add_argument(
-        "-oh", type=int, required=True, help="desired resized image height"
+        "-ow", type=int, required=True, help="desired resized image output width"
+    )
+    args = parser.parse_args()
+
+    resize_pad_XML(
+        ANN_PATH=args.ann_path,
+        IMG_PATH=args.img_path,
+        OUTPUT_ANN_PATH=args.resized_ap,
+        OUTPUT_IMG_PATH=args.resized_ip,
+        output_height=args.oh,
+        output_width=args.ow,
     )
