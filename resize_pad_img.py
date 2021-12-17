@@ -4,29 +4,33 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pascal_voc_writer import Writer
 import xml.etree.ElementTree as ET
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageOps
 import argparse
 
 
 def resize_pad_XML(
-    ANN_PATH, IMG_PATH, OUTPUT_ANN_PATH, OUTPUT_IMG_PATH, output_width, output_height
+    output_width,
+    output_height,
+    IMG_PATH,
+    ANN_PATH,
+    OUTPUT_IMG_PATH="resize_pad_img",
+    OUTPUT_ANN_PATH="resize_pad_ann",
 ):
 
     """
     To resize and pad images, while saving the result images and annotations
 
     # Arguments
-        ANN_PATH: path, annotation folder path
-        IMG_PATH: path, image folder path
-        OUTPUT_ANN_PATH: path, path to save resized and padded image annotation
-        OUTPUT_IMG_PATH: path, path to save resized and padded image
         output_weight: int, resized width
         output_height: int, resized height
-
+        IMG_PATH: path, image folder path
+        ANN_PATH: path, annotation folder path
+        OUTPUT_IMG_PATH: str, default="resize_pad_img", folder name to save resized and padded image
+        OUTPUT_ANN_PATH: str, default="resize_pad_ann", folder name to save resized and padded image annotation
 
     # Outputs
-        resized and padded image annotations saved to OUTPUT_ANN_PATH
         resized and padded images saved to OUTPUT_IMG_PATH
+        resized and padded image annotations saved to OUTPUT_ANN_PATH
     """
 
     img_id = [f.parts[-1].split(".")[0] for f in Path(ANN_PATH).iterdir()]
@@ -47,8 +51,16 @@ def resize_pad_XML(
 
         im = Image.open(os.path.join(IMG_PATH, f"{item}.jpg"))
         im_pad = ImageOps.pad(im, (output_width, output_height), color="black")
+
+        # saving of resize image
+        save_img_folder = os.path.join(OUTPUT_IMG_PATH)
+        os.makedirs(save_img_folder, exist_ok=True)
         im_pad.save(os.path.join(OUTPUT_IMG_PATH, f"{item}.jpg"))
+
+        # original size
         w, h = im.size
+        # after resize and pad size
+        w_pad, h_pad = im_pad.size
 
         im_ar = np.float32(w / h)
         output_im_ar = np.float32(output_width / output_height)
@@ -88,61 +100,59 @@ def resize_pad_XML(
 
         # re-write resized bounding box value into XML annotations
         for size in root.findall("size"):
-            size.find("width").text = str(output_width)
-            size.find("height").text = str(output_height)
+            size.find("width").text = str(w_pad)
+            size.find("height").text = str(h_pad)
         for index, object in enumerate(root.findall("object")):
             for value in object.findall("bndbox"):
                 value.find("xmin").text = str(resized_xml[index][0])
                 value.find("ymin").text = str(resized_xml[index][1])
                 value.find("xmax").text = str(resized_xml[index][2])
                 value.find("ymax").text = str(resized_xml[index][3])
+            save_ann_folder = os.path.join(OUTPUT_ANN_PATH)
+            os.makedirs(save_ann_folder, exist_ok=True)
             tree.write(os.path.join(OUTPUT_ANN_PATH, f"{item}.xml"))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--ann_path",
-        type=str,
-        default="./xml_ann",
-        required=True,
-        help="path to XML annotations folder",
-    )
-    parser.add_argument(
-        "--img_path",
-        type=str,
-        default="./img",
-        required=True,
-        help="path to image dataset folder",
-    )
-    parser.add_argument(
-        "--resized_ap",
-        type=str,
-        default="./resized_xml_ann",
-        required=True,
-        help="path to save rescaled XML annotations",
-    )
-    parser.add_argument(
-        "--resized_ip",
-        type=str,
-        default="./resized_img",
-        required=True,
-        help="path to save resized and padded images",
-    )
-    parser.add_argument(
         "-ow", type=int, required=True, help="desired resized image output width"
     )
     parser.add_argument(
         "-oh", type=int, required=True, help="desired resized image output height"
     )
+    parser.add_argument(
+        "--imgpath",
+        type=str,
+        required=True,
+        help="path to image dataset folder",
+    )
+    parser.add_argument(
+        "--annpath",
+        type=str,
+        required=True,
+        help="path to XML annotations folder",
+    )
+    parser.add_argument(
+        "--n_imgpath",
+        type=str,
+        default="resize_pad_img",
+        help="path to save resized and padded images",
+    )
+    parser.add_argument(
+        "--n_annpath",
+        type=str,
+        default="resize_pad_ann",
+        help="path to save rescaled XML annotations",
+    )
 
     args = parser.parse_args()
 
     resize_pad_XML(
-        ANN_PATH=args.ann_path,
-        IMG_PATH=args.img_path,
-        OUTPUT_ANN_PATH=args.resized_ap,
-        OUTPUT_IMG_PATH=args.resized_ip,
         output_width=args.ow,
         output_height=args.oh,
+        IMG_PATH=args.imgpath,
+        ANN_PATH=args.annpath,
+        OUTPUT_IMG_PATH=args.n_imgpath,
+        OUTPUT_ANN_PATH=args.n_annpath,
     )

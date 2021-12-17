@@ -4,6 +4,6 @@ To resize image dataset with padding method (black bars either on the sides or t
 The resulting resized + padded image and its rescaled bounding box(es) values are saved.
 
 ## Running of Script
-Run main python file in terminal - if resized image height and width is 640 * 640:
+Run python file in terminal - if resizing image to a width and height of 640 * 640:
 
-`python resize_pad_img.py --ann_path ./path/to/annotations --img_path ./path/to/imagedataset --resized_ap ./path/to/resized_annotation --resized_ip ./path/to/resized_images -oh 640 -ow 640`
+`python resize_pad_img.py -ow 640 -oh 640 --imgpath ./path/to/images --annpath ./path/to/annotations`
